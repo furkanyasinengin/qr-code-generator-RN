@@ -10,9 +10,14 @@ import { StatusBar, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import './global.css';
-import { Canvas, Rect } from '@shopify/react-native-skia';
 
-import { getQRCode, isFinderPattern } from './src/utils/qrGenerator';
+import { Canvas, Rect, useImage, Image } from '@shopify/react-native-skia';
+import { launchImageLibrary } from 'react-native-image-picker';
+import {
+  getQRCode,
+  isFinderPattern,
+  isLogoArea,
+} from './src/utils/qrGenerator';
 
 function App() {
   return (
@@ -25,6 +30,8 @@ function App() {
 
 function AppContent() {
   const [url, setUrl] = useState<string>('github.com/furkanyasinengin');
+  const [logo, setLogo] = useState<string | null>(null);
+
   const [qrSize, setQrSize] = useState<number>(25);
   const [qrData, setQrData] = useState<Uint8Array | []>([]);
   const [qrSquareSize, setQrSquareSize] = useState<number>(0);
@@ -49,7 +56,11 @@ function AppContent() {
   ];
 
   const { width } = Dimensions.get('window');
+  const CANVAS_SIZE = width - 50;
+  const LOGO_SIZE = width * 0.2;
   const PADDING = 10;
+
+  const skiaLogo = useImage(logo);
 
   useEffect(() => {
     if (!url) return;
@@ -57,8 +68,8 @@ function AppContent() {
     const { size, data } = qrObject.modules;
     setQrSize(size);
     setQrData(data);
-    setQrSquareSize((width - 50 - PADDING * 2) / size);
-  }, [url, width]);
+    setQrSquareSize((CANVAS_SIZE - PADDING * 2) / size);
+  }, [url, CANVAS_SIZE]);
 
   const getActiveColor = () => {
     if (activeTab === 'data') return primaryColor;
@@ -66,6 +77,22 @@ function AppContent() {
     return backgroundColor;
   };
 
+  const handleLogoSelect = async () => {
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      quality: 1,
+    });
+    if (result.didCancel) {
+      return;
+    }
+    if (result.errorMessage) {
+      return;
+    }
+    if (result.assets && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      setLogo(uri || null);
+    }
+  };
   return (
     <KeyboardAvoidingView
       keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
@@ -85,7 +112,7 @@ function AppContent() {
         >
           <Text className="text-2xl mb-2 font-bold mt-10">QR Generator</Text>
           <View className="items-center bg-white p-4 rounded-2xl shadow-sm">
-            <Canvas style={{ width: width - 50, height: width - 50 }}>
+            <Canvas style={{ width: CANVAS_SIZE, height: CANVAS_SIZE }}>
               <Rect
                 x={0}
                 y={0}
@@ -96,7 +123,10 @@ function AppContent() {
               {Array.from(qrData).map((value, index) => {
                 const colIndex = index % qrSize;
                 const rowIndex = Math.floor(index / qrSize);
-                if (value)
+                if (logo && isLogoArea(rowIndex, colIndex, qrSize)) {
+                  return null;
+                }
+                if (value) {
                   return (
                     <Rect
                       key={index}
@@ -111,13 +141,25 @@ function AppContent() {
                       }
                     />
                   );
+                }
               })}
+              {skiaLogo && (
+                <Image
+                  image={skiaLogo}
+                  x={PADDING + (qrSize * qrSquareSize - LOGO_SIZE) / 2 + 5}
+                  y={PADDING + (qrSize * qrSquareSize - LOGO_SIZE) / 2 + 5}
+                  width={LOGO_SIZE}
+                  height={LOGO_SIZE}
+                  fit="contain"
+                />
+              )}
             </Canvas>
           </View>
           <TextInput
             className="text-black text-center w-3/4 bg-white p-4 rounded-xl my-4 border border-gray-300"
             value={url}
             placeholder={'github.com'}
+            placeholderTextColor={'gray'}
             onChangeText={setUrl}
           />
           <View className="flex-row bg-gray-200 p-1 rounded-xl mb-10 mx-2">
@@ -175,6 +217,14 @@ function AppContent() {
               />
             ))}
           </ScrollView>
+          <TouchableOpacity
+            onPress={() => (logo ? setLogo(null) : handleLogoSelect())}
+            className={`m-5 p-4 rounded-full ${logo ? 'bg-red-500' : 'bg-emerald-500'}`}
+          >
+            <Text className="text-white text-lg font-bold">
+              {logo ? 'Remove Logo' : 'Select Logo'}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
     </KeyboardAvoidingView>

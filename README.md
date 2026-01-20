@@ -21,12 +21,12 @@ Unlike standard generators, QR Generator allows for real-time customization, log
 
 |                     Default View                      |                    Custom Styling                    |
 | :---------------------------------------------------: | :--------------------------------------------------: |
-| <img src="./assets/screen_default.png" width="300" /> | <img src="./assets/screen_custom.png" width="300" /> |
+| <img src="./assets/screen_default.jpg" width="300" /> | <img src="./assets/screen_custom.jpg" width="300" /> |
 |            **Standard startup interface.**            |       **Custom colors and logo integration.**        |
 
 |                  Save Confirmation                  |                    Gallery Result                     |
 | :-------------------------------------------------: | :---------------------------------------------------: |
-| <img src="./assets/screen_saved.png" width="300" /> | <img src="./assets/result_gallery.png" width="300" /> |
+| <img src="./assets/screen_saved.jpg" width="300" /> | <img src="./assets/result_gallery.png" width="300" /> |
 |        **In-app notification upon saving.**         |          **Final output in device gallery.**          |
 
 ## Technology Stack

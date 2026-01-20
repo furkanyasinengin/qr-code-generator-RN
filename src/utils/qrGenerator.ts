@@ -1,14 +1,14 @@
-import QRCode from "qrcode";
-import type { QRCode as QRCodeType } from "qrcode";
+import QRCode from 'qrcode';
+import type { QRCode as QRCodeType } from 'qrcode';
 
 export const getQRCode = (text: string): QRCodeType => {
-  return QRCode.create(text, { errorCorrectionLevel: "H" });
+  return QRCode.create(text, { errorCorrectionLevel: 'H' });
 };
 
 export const isFinderPattern = (
   row: number,
   col: number,
-  size: number
+  size: number,
 ): boolean => {
   if (
     (row < 7 && col < 7) ||
@@ -29,12 +29,3 @@ export const isLogoArea = (row: number, col: number, size: number): boolean => {
 
   return false;
 };
-
-// export const downloadCanvasAsPng = (canvas: HTMLCanvasElement) => {
-//   const data = canvas.toDataURL("image/png");
-//   const downloadElement = document.createElement("a");
-//   downloadElement.href = data;
-//   downloadElement.download = "qr-code.png";
-//   downloadElement.click();
-//   downloadElement.remove();
-// };

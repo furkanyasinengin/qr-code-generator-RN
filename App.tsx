@@ -1,23 +1,48 @@
 import {
   Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StatusBar, Text, TextInput, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import './global.css';
 
-import { Canvas, Rect, useImage, Image } from '@shopify/react-native-skia';
+import {
+  Canvas,
+  Rect,
+  useImage,
+  Image as SkiaImage,
+} from '@shopify/react-native-skia';
 import { launchImageLibrary } from 'react-native-image-picker';
+import Share from 'react-native-share';
+import RNFS from 'react-native-fs';
+import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import Svg, { Path } from 'react-native-svg';
 import {
   getQRCode,
   isFinderPattern,
   isLogoArea,
 } from './src/utils/qrGenerator';
+
+const SaveIcon = ({ color = 'white', size = 24 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M19 9H15V3H9V9H5L12 16L19 9ZM5 18V20H19V18H5Z" fill={color} />
+  </Svg>
+);
+
+const ShareIcon = ({ color = 'white', size = 24 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M18 16.08C17.24 16.08 16.56 16.38 16.04 16.85L8.91 12.7C8.96 12.47 9 12.24 9 12C9 11.76 8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.69 17.21 8 18 8C19.66 8 21 6.66 21 5C21 3.34 19.66 2 18 2C16.34 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.31 6.79 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.79 15 7.5 14.69 8.04 14.19L15.16 18.34C15.11 18.55 15.08 18.77 15.08 19C15.08 20.61 16.39 21.92 18 21.92C19.61 21.92 20.92 20.61 20.92 19C20.92 17.39 19.61 16.08 18 16.08Z"
+      fill={color}
+    />
+  </Svg>
+);
 
 function App() {
   return (
@@ -29,6 +54,8 @@ function App() {
 }
 
 function AppContent() {
+  const canvasRef = useRef<any>(null);
+
   const [url, setUrl] = useState<string>('github.com/furkanyasinengin');
   const [logo, setLogo] = useState<string | null>(null);
 
@@ -41,6 +68,8 @@ function AppContent() {
   const [backgroundColor, setBackgroundColor] = useState<string>('#FFFFFF');
 
   const [activeTab, setActiveTab] = useState<'data' | 'eye' | 'bg'>('data');
+
+  const [savedPreview, setSavedPreview] = useState<string | null>(null);
 
   const colorPalette = [
     '#000000',
@@ -93,6 +122,52 @@ function AppContent() {
       setLogo(uri || null);
     }
   };
+
+  const handleShare = async () => {
+    const image = canvasRef.current?.makeImageSnapshot();
+    if (image) {
+      const base64 = image.encodeToBase64();
+      const filePath = `${RNFS.CachesDirectoryPath}/qr_${Date.now()}.png`;
+      await RNFS.writeFile(filePath, base64, 'base64');
+      try {
+        await Share.open({
+          title: 'Share QR Code',
+          url: `file://${filePath}`,
+          type: 'image/png',
+          filename: 'qr',
+          failOnCancel: false,
+        });
+      } catch (error) {
+        console.log(error);
+      } finally {
+        RNFS.unlink(filePath).catch(() => {});
+      }
+    }
+  };
+
+  const handleSaveToGallery = async () => {
+    const image = canvasRef.current?.makeImageSnapshot();
+    if (!image) return;
+
+    const base64 = image.encodeToBase64();
+    const filePath = `${RNFS.CachesDirectoryPath}/qr_${Date.now()}.png`;
+    await RNFS.writeFile(filePath, base64, 'base64');
+
+    try {
+      await CameraRoll.saveAsset(`file://${filePath}`, {
+        type: 'photo',
+        album: 'QR Generator',
+      });
+      setSavedPreview(`file://${filePath}`);
+      setTimeout(() => {
+        setSavedPreview(null);
+        RNFS.unlink(filePath).catch(() => {});
+      }, 3000);
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
@@ -101,7 +176,6 @@ function AppContent() {
     >
       <View className="flex-1 w-full">
         <ScrollView
-          style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           contentContainerStyle={{
@@ -112,7 +186,10 @@ function AppContent() {
         >
           <Text className="text-2xl mb-2 font-bold mt-10">QR Generator</Text>
           <View className="items-center bg-white p-4 rounded-2xl shadow-sm">
-            <Canvas style={{ width: CANVAS_SIZE, height: CANVAS_SIZE }}>
+            <Canvas
+              ref={canvasRef}
+              style={{ width: CANVAS_SIZE, height: CANVAS_SIZE }}
+            >
               <Rect
                 x={0}
                 y={0}
@@ -144,7 +221,7 @@ function AppContent() {
                 }
               })}
               {skiaLogo && (
-                <Image
+                <SkiaImage
                   image={skiaLogo}
                   x={PADDING + (qrSize * qrSquareSize - LOGO_SIZE) / 2 + 5}
                   y={PADDING + (qrSize * qrSquareSize - LOGO_SIZE) / 2 + 5}
@@ -217,16 +294,45 @@ function AppContent() {
               />
             ))}
           </ScrollView>
-          <TouchableOpacity
-            onPress={() => (logo ? setLogo(null) : handleLogoSelect())}
-            className={`m-5 p-4 rounded-full ${logo ? 'bg-red-500' : 'bg-emerald-500'}`}
-          >
-            <Text className="text-white text-lg font-bold">
-              {logo ? 'Remove Logo' : 'Select Logo'}
-            </Text>
-          </TouchableOpacity>
+          <View className="flex-row gap-4 my-5">
+            <TouchableOpacity
+              onPress={() => (logo ? setLogo(null) : handleLogoSelect())}
+              className={`p-4 rounded-full items-center justify-center ${logo ? 'bg-red-500' : 'bg-emerald-500'}`}
+            >
+              <Text className="text-white text-lg font-bold">
+                {logo ? 'Remove Logo' : 'Select Logo'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleShare}
+              className="p-4 rounded-full bg-blue-500 items-center justify-center"
+            >
+              <ShareIcon color="white" size={24} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSaveToGallery}
+              className="p-4 rounded-full bg-blue-500 items-center justify-center"
+            >
+              <SaveIcon color="white" size={24} />
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </View>
+      {savedPreview && (
+        <View className="absolute bg-gray-500/50 inset-0 items-center justify-center">
+          <View className="bg-white p-4 rounded-2xl items-center">
+            <Image
+              source={{ uri: savedPreview }}
+              width={220}
+              height={220}
+              resizeMode="contain"
+            />
+            <Text className="mt-3 text-green-600 font-bold text-lg">
+              Saved To Gallery
+            </Text>
+          </View>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }

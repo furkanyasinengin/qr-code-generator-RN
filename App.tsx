@@ -181,7 +181,8 @@ function AppContent() {
           contentContainerStyle={{
             flexGrow: 1,
             alignItems: 'center',
-            paddingVertical: 50,
+            // paddingVertical: 50,
+            paddingTop: 50,
           }}
         >
           <Text className="text-2xl mb-2 font-bold mt-10">QR Generator</Text>

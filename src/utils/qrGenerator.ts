@@ -20,7 +20,7 @@ export const isFinderPattern = (
 };
 
 export const isLogoArea = (row: number, col: number, size: number): boolean => {
-  const logoRatio = 0.2;
+  const logoRatio = 0.25;
   const logoSize = size * logoRatio;
   const padding = 1.5;
   const start = (size - logoSize) / 2 - padding;

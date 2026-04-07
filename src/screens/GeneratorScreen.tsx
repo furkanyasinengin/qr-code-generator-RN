@@ -13,15 +13,26 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Text, View, ActivityIndicator } from 'react-native';
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
-import { Link, Wifi, Contact, FileText, Pencil } from 'lucide-react-native';
-import { getQRCode } from '../utils/qrGenerator';
+import {
+  Link,
+  Wifi,
+  Contact,
+  FileText,
+  Pencil,
+  Mail,
+  Phone,
+  MessageSquare,
+  MapPin,
+  Calendar,
+} from 'lucide-react-native';
+import { generateQRString, getQRCode } from '../utils/qrGenerator';
 import DataModal from '../components/DataModal';
 
 import { QRCanvas } from '../components/QRCanvas';
 import ColorSelector from '../components/ColorSelector';
 import ActionButtons from '../components/ActionButtons';
 import IconSelector from '../components/IconSelector';
+import { triggerHaptic } from '../utils/haptic';
 
 export function GeneratorScreen() {
   const canvasRef = useRef<any>(null);
@@ -32,9 +43,15 @@ export function GeneratorScreen() {
   const [qrData, setQrData] = useState<Uint8Array | []>([]);
   const [qrSquareSize, setQrSquareSize] = useState<number>(0);
 
-  const [primaryColor, setPrimaryColor] = useState<string>('#000000');
-  const [secondaryColor, setSecondaryColor] = useState<string>('#000000');
-  const [backgroundColor, setBackgroundColor] = useState<string>('#FFFFFF');
+  // const [primaryColor, setPrimaryColor] = useState<string>('#000000');
+  // const [secondaryColor, setSecondaryColor] = useState<string>('#000000');
+  // const [backgroundColor, setBackgroundColor] = useState<string>('#FFFFFF');
+  const [qrDesign, setQrDesign] = useState({
+    primaryColor: '#000000',
+    secondaryColor: '#000000',
+    backgroundColor: '#FFFFFF',
+    // İleride buraya gradient: false, dotShape: 'rounded' gibi şeyler de ekleyebilirsin
+  });
 
   const [activeTab, setActiveTab] = useState<'data' | 'eye' | 'bg'>('data');
 
@@ -63,15 +80,32 @@ export function GeneratorScreen() {
     // vcardRegion: '',
     // vcardPostCode: '',
     vcardWebsite: '',
+    emailTo: '',
+    emailSubject: '',
+    emailBody: '',
+    // Phone
+    phoneNum: '',
+    // SMS
+    smsNum: '',
+    smsMsg: '',
+    // Location
+    geoLat: '',
+    geoLng: '',
+    // Event
+    eventTitle: '',
+    eventLocation: '',
+    eventStart: '', // Format: YYYYMMDDTHHMMSSZ
+    eventEnd: '', // Format: YYYYMMDDTHHMMSSZ
+    eventNotes: '',
   });
 
   const { width } = Dimensions.get('window');
   const CANVAS_SIZE = width * 0.65;
-  const LOGO_SIZE = CANVAS_SIZE * 0.25;
+  const LOGO_SIZE = CANVAS_SIZE * 0.2;
   const PADDING = 10;
 
   const EXPORT_SIZE = 1024;
-  const EXPORT_LOGO_SIZE = EXPORT_SIZE * 0.25;
+  const EXPORT_LOGO_SIZE = EXPORT_SIZE * 0.2;
   const EXPORT_PADDING = 40;
   const exportQrSquareSize =
     qrSize > 0 ? (EXPORT_SIZE - EXPORT_PADDING * 2) / qrSize : 0;
@@ -81,75 +115,22 @@ export function GeneratorScreen() {
   const skiaLogo = useImage(logo);
 
   useEffect(() => {
-    const generateQRString = () => {
-      switch (qrType) {
-        case 'wifi': {
-          const wifiArray = [];
-          wifiArray.push(`S:${formData.wifiName}`);
-          if (formData.wifiEncryption === 'None') {
-            wifiArray.push(`T:nopass`);
-          } else {
-            wifiArray.push(`T:${formData.wifiEncryption}`);
-            wifiArray.push(`P:${formData.wifiPassword}`);
-          }
-          if (formData.wifiIsHidden) {
-            wifiArray.push(`H:true`);
-          }
-          return `WIFI:${wifiArray.join(';')};;`;
-        }
-        case 'vcard': {
-          const vcardArray = [
-            'BEGIN:VCARD',
-            'VERSION:3.0',
-            `FN:${formData.vcardName}`,
-            `TEL:${formData.vcardPhone}`,
-          ];
-          if (formData.vcardEmail) {
-            vcardArray.push(`EMAIL:${formData.vcardEmail}`);
-          }
-          if (formData.vcardCompany) {
-            vcardArray.push(`ORG:${formData.vcardCompany}`);
-          }
-          if (formData.vcardWorkTitle) {
-            vcardArray.push(`TITLE:${formData.vcardWorkTitle}`);
-          }
-          if (formData.vcardWebsite) {
-            vcardArray.push(`URL:${formData.vcardWebsite}`);
-          }
-          vcardArray.push('END:VCARD');
-          return vcardArray.join('\n');
-        }
-        case 'text':
-          return formData.text || ' ';
-        case 'url':
-        default:
-          return formData.url || ' ';
-      }
-    };
-
-    const finalQrString = generateQRString();
+    const finalQrString = generateQRString(qrType, formData);
     if (!finalQrString.trim()) return;
 
-    const qrObject = getQRCode(finalQrString);
+    const hasLogo = skiaLogo !== null;
+    const qrObject = getQRCode(finalQrString, hasLogo);
 
     const { size, data } = qrObject.modules;
     setQrSize(size);
     setQrData(data);
     setQrSquareSize((CANVAS_SIZE - PADDING * 2) / size);
-  }, [qrType, formData, CANVAS_SIZE]);
+  }, [qrType, formData, CANVAS_SIZE, skiaLogo]);
 
   const getActiveColor = () => {
-    if (activeTab === 'data') return primaryColor;
-    if (activeTab === 'eye') return secondaryColor;
-    return backgroundColor;
-  };
-
-  const triggerHaptic = () => {
-    const options = {
-      enableVibrateFallback: true,
-      ignoreAndroidSystemSettings: false,
-    };
-    ReactNativeHapticFeedback.trigger('impactMedium', options);
+    if (activeTab === 'data') return qrDesign.primaryColor;
+    if (activeTab === 'eye') return qrDesign.secondaryColor;
+    return qrDesign.backgroundColor;
   };
 
   const handleLogoSelect = async () => {
@@ -219,11 +200,55 @@ export function GeneratorScreen() {
     }
   };
 
-  const handleLogoToggle = () => {
-    if (logo) {
-      setLogo(null);
-    } else {
-      handleLogoSelect();
+  const getPreviewText = () => {
+    switch (qrType) {
+      case 'url':
+        return formData.url || 'URL Missing';
+      case 'text':
+        return formData.text || 'Text Missing';
+      case 'wifi':
+        return formData.wifiName || 'Network Name Missing';
+      case 'vcard':
+        return formData.vcardName || 'Name Missing';
+      case 'email':
+        return formData.emailTo || 'Email Missing';
+      case 'phone':
+        return formData.phoneNum || 'Phone Missing';
+      case 'sms':
+        return formData.smsNum || 'Number Missing';
+      case 'location':
+        return formData.geoLat && formData.geoLng
+          ? `${formData.geoLat}, ${formData.geoLng}`
+          : 'Location Missing';
+      case 'event':
+        return formData.eventTitle || 'Event Title Missing';
+      default:
+        return 'Data Missing';
+    }
+  };
+
+  const getPreviewIcon = () => {
+    const props = { size: 20, color: '#6B7280' };
+    switch (qrType) {
+      case 'url':
+        return <Link {...props} />;
+      case 'wifi':
+        return <Wifi {...props} />;
+      case 'vcard':
+        return <Contact {...props} />;
+      case 'email':
+        return <Mail {...props} />;
+      case 'phone':
+        return <Phone {...props} />;
+      case 'sms':
+        return <MessageSquare {...props} />;
+      case 'location':
+        return <MapPin {...props} />;
+      case 'event':
+        return <Calendar {...props} />;
+      case 'text':
+      default:
+        return <FileText {...props} />;
     }
   };
 
@@ -231,7 +256,7 @@ export function GeneratorScreen() {
     <KeyboardAvoidingView
       keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
       behavior={'padding'}
-      className="flex-1 bg-gray-100"
+      className="flex-1 bg-gray-100 mt-5"
     >
       <View className="flex-1 w-full">
         {logo && !skiaLogo && (
@@ -246,24 +271,31 @@ export function GeneratorScreen() {
             flexGrow: 1,
             alignItems: 'center',
             // paddingVertical: 50,
-            paddingTop: 50,
+            paddingTop: 30,
           }}
         >
-          <Text className="text-2xl mb-2 font-bold mt-10">QR Generator</Text>
+          <Text className="text-2xl mb-2 font-bold">QR Generator</Text>
           <QRCanvas
             ref={canvasRef}
             qrData={qrData}
             qrSize={qrSize}
             qrSquareSize={qrSquareSize}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-            backgroundColor={backgroundColor}
+            primaryColor={qrDesign.primaryColor}
+            secondaryColor={qrDesign.secondaryColor}
+            backgroundColor={qrDesign.backgroundColor}
             skiaLogo={skiaLogo}
             canvasSize={CANVAS_SIZE}
             logoSize={LOGO_SIZE}
             padding={PADDING}
           />
-          <TouchableOpacity
+          {qrSize > 45 && (
+            <View className="bg-yellow-50 px-3 py-2 rounded-lg mt-2 border border-yellow-200 flex-row items-center">
+              <Text className="text-yellow-700 text-xs font-medium">
+                Data is dense. Some old cameras might struggle to scan.
+              </Text>
+            </View>
+          )}
+          {/* <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
               triggerHaptic();
@@ -304,6 +336,38 @@ export function GeneratorScreen() {
             <View className="bg-blue-50 p-2 rounded-full ml-3">
               <Pencil size={18} color="#3B82F6" />
             </View>
+          </TouchableOpacity> */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              triggerHaptic();
+              setIsDataModalVisible(true);
+            }}
+            className="w-[90%] bg-white p-4 rounded-xl my-4 border border-gray-200 shadow-sm flex-row items-center"
+          >
+            {/* İKON KISMI */}
+            <View className="bg-gray-50 p-2.5 rounded-full mr-3 border border-gray-100">
+              <Text className="text-gray-500 text-xs font-bold uppercase mb-1">
+                {getPreviewIcon()}
+              </Text>
+            </View>
+
+            {/* METİN KISMI */}
+            <View className="flex-1 justify-center">
+              <Text className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">
+                {qrType} Data
+              </Text>
+              <Text
+                className="text-gray-800 font-bold text-base"
+                numberOfLines={1}
+              >
+                {getPreviewText()}
+              </Text>
+            </View>
+
+            <View className="bg-blue-50 p-2 rounded-full ml-3">
+              <Pencil size={18} color="#3B82F6" />
+            </View>
           </TouchableOpacity>
           <ColorSelector
             activeTab={activeTab}
@@ -311,9 +375,12 @@ export function GeneratorScreen() {
             activeColor={getActiveColor()}
             triggerHaptic={triggerHaptic}
             onColorSelect={color => {
-              if (activeTab === 'data') setPrimaryColor(color);
-              else if (activeTab === 'eye') setSecondaryColor(color);
-              else if (activeTab === 'bg') setBackgroundColor(color);
+              if (activeTab === 'data')
+                setQrDesign(prev => ({ ...prev, primaryColor: color }));
+              else if (activeTab === 'eye')
+                setQrDesign(prev => ({ ...prev, secondaryColor: color }));
+              else if (activeTab === 'bg')
+                setQrDesign(prev => ({ ...prev, backgroundColor: color }));
             }}
           />
           <IconSelector
@@ -322,12 +389,7 @@ export function GeneratorScreen() {
             onGallerySelect={handleLogoSelect}
             onIconSelect={icon => setLogo(icon)}
           />
-          <ActionButtons
-            hasLogo={!!logo}
-            onLogoSelect={handleLogoToggle}
-            onShare={handleShare}
-            onSave={handleSaveToGallery}
-          />
+          <ActionButtons onShare={handleShare} onSave={handleSaveToGallery} />
         </ScrollView>
       </View>
       {savedPreview && (
@@ -363,9 +425,9 @@ export function GeneratorScreen() {
           qrData={qrData}
           qrSize={qrSize}
           qrSquareSize={exportQrSquareSize}
-          primaryColor={primaryColor}
-          secondaryColor={secondaryColor}
-          backgroundColor={backgroundColor}
+          primaryColor={qrDesign.primaryColor}
+          secondaryColor={qrDesign.secondaryColor}
+          backgroundColor={qrDesign.backgroundColor}
           skiaLogo={skiaLogo}
           canvasSize={EXPORT_SIZE}
           logoSize={EXPORT_LOGO_SIZE}

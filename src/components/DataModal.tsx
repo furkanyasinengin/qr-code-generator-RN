@@ -1,12 +1,17 @@
 import { Modal, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { X } from 'lucide-react-native';
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { useEffect, useState } from 'react';
 import UrlForm from './forms/UrlForm';
 import TextForm from './forms/TextForm';
 import WifiForm from './forms/WifiForm';
 import VCardForm from './forms/VCardForm';
 import CustomAlert from './CustomAlert';
+import { triggerHaptic } from '../utils/haptic';
+import EmailForm from './forms/EmailForm';
+import PhoneForm from './forms/PhoneForm';
+import SMSForm from './forms/SMSForm';
+import LocationForm from './forms/LocationForm';
+import EventForm from './forms/EventForm';
 
 export interface FormDataState {
   url: string;
@@ -27,6 +32,23 @@ export interface FormDataState {
   // vcardRegion: string;
   // vcardPostCode: string;
   vcardWebsite: string;
+  emailTo: string;
+  emailSubject: string;
+  emailBody: string;
+  // Phone
+  phoneNum: string;
+  // SMS
+  smsNum: string;
+  smsMsg: string;
+  // Location
+  geoLat: string;
+  geoLng: string;
+  // Event
+  eventTitle: string;
+  eventLocation: string;
+  eventStart: string; // Format: YYYYMMDDTHHMMSSZ
+  eventEnd: string; // Format: YYYYMMDDTHHMMSSZ
+  eventNotes: string;
 }
 
 interface DataModalProps {
@@ -53,7 +75,6 @@ export default function DataModal({
     title: '',
     message: '',
     confirmText: '',
-    // onConfirm: () => {},
   });
 
   useEffect(() => {
@@ -63,19 +84,16 @@ export default function DataModal({
     }
   }, [isVisible, qrType, formData]);
 
-  const triggerHaptic = () => {
-    const options = {
-      enableVibrateFallback: true,
-      ignoreAndroidSystemSettings: false,
-    };
-    ReactNativeHapticFeedback.trigger('impactMedium', options);
-  };
-
   const qrTypeOptions = [
     { id: 'url', label: 'URL' },
     { id: 'text', label: 'Text' },
     { id: 'wifi', label: 'WiFi' },
     { id: 'vcard', label: 'Contact' },
+    { id: 'email', label: 'Email' },
+    { id: 'phone', label: 'Phone' },
+    { id: 'sms', label: 'SMS' },
+    { id: 'location', label: 'Location' },
+    { id: 'event', label: 'Event' },
   ];
 
   const handleSave = () => {
@@ -141,6 +159,79 @@ export default function DataModal({
           title: 'Validation Error',
           message: 'Name and Phone number are required.',
           // onConfirm:
+          confirmText: 'OK',
+        });
+        return;
+      }
+    }
+
+    if (localQrType === 'email') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (
+        !localFormData.emailTo.trim() ||
+        !emailRegex.test(localFormData.emailTo)
+      ) {
+        setAlertConfig({
+          visible: true,
+          title: 'Validation Error',
+          message: 'Please enter a valid email address.',
+          confirmText: 'OK',
+        });
+        return;
+      }
+    }
+
+    if (localQrType === 'phone') {
+      if (!localFormData.phoneNum.trim()) {
+        setAlertConfig({
+          visible: true,
+          title: 'Validation Error',
+          message: 'Phone number cannot be empty.',
+          confirmText: 'OK',
+        });
+        return;
+      }
+    }
+
+    if (localQrType === 'sms') {
+      if (!localFormData.smsNum.trim() || !localFormData.smsMsg.trim()) {
+        setAlertConfig({
+          visible: true,
+          title: 'Validation Error',
+          message: 'Both recipient number and message are required.',
+          confirmText: 'OK',
+        });
+        return;
+      }
+    }
+
+    if (localQrType === 'location') {
+      if (!localFormData.geoLat.trim() || !localFormData.geoLng.trim()) {
+        setAlertConfig({
+          visible: true,
+          title: 'Validation Error',
+          message: 'Latitude and Longitude cannot be empty.',
+          confirmText: 'OK',
+        });
+        return;
+      }
+    }
+
+    if (localQrType === 'event') {
+      if (!localFormData.eventTitle.trim()) {
+        setAlertConfig({
+          visible: true,
+          title: 'Validation Error',
+          message: 'Event title is required.',
+          confirmText: 'OK',
+        });
+        return;
+      }
+      if (!localFormData.eventStart) {
+        setAlertConfig({
+          visible: true,
+          title: 'Validation Error',
+          message: 'Start and end dates are required.',
           confirmText: 'OK',
         });
         return;
@@ -213,6 +304,28 @@ export default function DataModal({
               {/* VCARD FORM */}
               {localQrType === 'vcard' && (
                 <VCardForm data={localFormData} onChange={setLocalFormData} />
+              )}
+
+              {/* EMAIL FORM */}
+              {localQrType === 'email' && (
+                <EmailForm data={localFormData} onChange={setLocalFormData} />
+              )}
+              {/* PHONE FORM */}
+              {localQrType === 'phone' && (
+                <PhoneForm data={localFormData} onChange={setLocalFormData} />
+              )}
+              {/* SMS FORM */}
+              {localQrType === 'sms' && (
+                <SMSForm data={localFormData} onChange={setLocalFormData} />
+              )}
+              {localQrType === 'location' && (
+                <LocationForm
+                  data={localFormData}
+                  onChange={setLocalFormData}
+                />
+              )}
+              {localQrType === 'event' && (
+                <EventForm data={localFormData} onChange={setLocalFormData} />
               )}
             </View>
           </ScrollView>

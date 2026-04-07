@@ -1,5 +1,7 @@
 import { View, Text, TextInput, Switch, TouchableOpacity } from 'react-native';
 import { FormDataState } from '../DataModal';
+import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react-native';
 
 interface FormProps {
   data: FormDataState;
@@ -8,6 +10,7 @@ interface FormProps {
 }
 
 export default function WifiForm({ data, onChange, triggerHaptic }: FormProps) {
+  const [showPassword, setShowPassword] = useState(false);
   return (
     <View>
       <Text className="text-gray-500 text-sm font-bold mb-2 uppercase">
@@ -22,7 +25,7 @@ export default function WifiForm({ data, onChange, triggerHaptic }: FormProps) {
         onChangeText={text => onChange({ ...data, wifiName: text })}
         textContentType="none"
         autoComplete="off"
-        importantForAutofill="no"
+        importantForAutofill="noExcludeDescendants"
       />
       <View className="flex-row items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-4 mt-4">
         <Text className="text-gray-700 font-medium">Hidden Network</Text>
@@ -76,23 +79,35 @@ export default function WifiForm({ data, onChange, triggerHaptic }: FormProps) {
           <Text className="text-gray-500 text-sm font-bold mb-2 uppercase">
             Password
           </Text>
-          <TextInput
-            className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-black"
-            placeholder="Password"
-            placeholderTextColor="gray"
-            value={data.wifiPassword}
-            maxLength={50}
-            onChangeText={text =>
-              onChange({
-                ...data,
-                wifiPassword: text,
-              })
-            }
-            secureTextEntry={true}
-            textContentType="none"
-            autoComplete="off"
-            importantForAutofill="no"
-          />
+          <View className="relative justify-center mt-3">
+            <TextInput
+              className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-black"
+              placeholder="Password"
+              placeholderTextColor="gray"
+              value={data.wifiPassword}
+              maxLength={50}
+              onChangeText={text =>
+                onChange({
+                  ...data,
+                  wifiPassword: text,
+                })
+              }
+              secureTextEntry={!showPassword}
+              textContentType="none"
+              autoComplete="off"
+              importantForAutofill="noExcludeDescendants"
+            />
+            <TouchableOpacity
+              className="absolute right-4"
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <Eye color="gray" size={20} />
+              ) : (
+                <EyeOff color="gray" size={20} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>

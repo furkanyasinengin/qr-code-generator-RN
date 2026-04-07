@@ -1,5 +1,5 @@
 import { RefreshCw, Shield, Zap, ZapOff } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -19,6 +19,8 @@ import Animated, {
   useSharedValue,
   useAnimatedProps,
 } from 'react-native-reanimated';
+import { useStore } from '../store/useStore';
+import { getQrType } from '../utils/qrParser';
 
 import ScannerModal from '../components/ScannerModal';
 
@@ -30,6 +32,8 @@ export default function ScannerScreen() {
   const isFocused = useIsFocused();
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [isTorchOn, setIsTorchOn] = useState(false);
+
+  const addHistoryItem = useStore(state => state.addHistoryItem);
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
@@ -48,13 +52,28 @@ export default function ScannerScreen() {
       }
       const code = codes[0];
       if (code.value) {
+        if (scannedData === code.value) return;
+
         setScannedData(code.value);
         setIsTorchOn(false);
         Vibration.vibrate(VIBRATITON_PATTERN);
+        addHistoryItem({
+          source: 'scan',
+          qrType: getQrType(code.value),
+          rawData: code.value,
+        });
       }
     },
   });
 
+  useEffect(() => {
+    if (!isFocused) {
+      setIsTorchOn(false); // Feneri kapa
+      if (device) {
+        zoom.value = device.neutralZoom; // Zoom'u varsayılana çek
+      }
+    }
+  }, [isFocused, device, zoom]);
   // useEffect(() => {
   //   if (!hasPermission) {
   //     requestPermission();

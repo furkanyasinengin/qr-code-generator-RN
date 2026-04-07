@@ -3,12 +3,13 @@ import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { QrCode, ScanLine } from 'lucide-react-native';
+import { History, QrCode, ScanLine } from 'lucide-react-native';
 
 import './global.css';
 import { GeneratorScreen } from './src/screens/GeneratorScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
 import { triggerHaptic } from './src/utils/haptic';
+import HistoryScreen from './src/screens/HistoryScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -18,7 +19,7 @@ function App() {
       <StatusBar barStyle={'dark-content'} />
       <NavigationContainer>
         <Tab.Navigator
-          initialRouteName="Scan"
+          initialRouteName="History"
           screenOptions={{
             headerShown: false,
             tabBarActiveTintColor: '#3b82f6',
@@ -56,6 +57,16 @@ function App() {
                 <ScanLine color={color} size={size} />
               ),
               tabBarLabel: 'Scan',
+            }}
+          />
+          <Tab.Screen
+            name="History"
+            component={HistoryScreen}
+            options={{
+              tabBarIcon: ({ color, size }) => (
+                <History color={color} size={size} />
+              ),
+              tabBarLabel: 'History',
             }}
           />
         </Tab.Navigator>

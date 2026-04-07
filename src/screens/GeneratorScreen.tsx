@@ -25,6 +25,7 @@ import {
   MapPin,
   Calendar,
 } from 'lucide-react-native';
+import { useStore } from '../store/useStore';
 import { generateQRString, getQRCode } from '../utils/qrGenerator';
 import DataModal from '../components/DataModal';
 
@@ -34,7 +35,7 @@ import ActionButtons from '../components/ActionButtons';
 import IconSelector from '../components/IconSelector';
 import { triggerHaptic } from '../utils/haptic';
 
-export function GeneratorScreen() {
+export function GeneratorScreen({ route, navigation }: any) {
   const canvasRef = useRef<any>(null);
 
   const [logo, setLogo] = useState<string | null>(null);
@@ -58,6 +59,8 @@ export function GeneratorScreen() {
   const [savedPreview, setSavedPreview] = useState<string | null>(null);
 
   const [isDataModalVisible, setIsDataModalVisible] = useState(false);
+
+  const addHistoryItem = useStore(state => state.addHistoryItem);
 
   const [qrType, setQrType] = useState('url');
 
@@ -114,6 +117,18 @@ export function GeneratorScreen() {
 
   const skiaLogo = useImage(logo);
 
+  const saveToHistory = () => {
+    const finalQrString = generateQRString(qrType, formData);
+    if (!finalQrString.trim()) return;
+
+    addHistoryItem({
+      source: 'create',
+      qrType: qrType,
+      rawData: finalQrString,
+      parsedData: formData,
+    });
+  };
+
   useEffect(() => {
     const finalQrString = generateQRString(qrType, formData);
     if (!finalQrString.trim()) return;
@@ -132,6 +147,17 @@ export function GeneratorScreen() {
     if (activeTab === 'eye') return qrDesign.secondaryColor;
     return qrDesign.backgroundColor;
   };
+
+  useEffect(() => {
+    if (route.params?.editData && route.params?.qrType) {
+      const { editData, qrType: incomingType } = route.params;
+
+      setQrType(incomingType);
+      setFormData(editData);
+
+      navigation.setParams({ editData: undefined, qrType: undefined });
+    }
+  }, [route.params, navigation]);
 
   const handleLogoSelect = async () => {
     triggerHaptic();
@@ -153,6 +179,7 @@ export function GeneratorScreen() {
 
   const handleShare = async () => {
     triggerHaptic();
+
     // const image = canvasRef.current?.makeImageSnapshot();
     const image = exportCanvasRef.current?.makeImageSnapshot();
     if (image) {
@@ -167,6 +194,7 @@ export function GeneratorScreen() {
           filename: 'qr',
           failOnCancel: false,
         });
+        saveToHistory();
       } catch (error) {
         console.log(error);
       } finally {
@@ -190,6 +218,7 @@ export function GeneratorScreen() {
         type: 'photo',
         album: 'QR Generator',
       });
+      saveToHistory();
       setSavedPreview(`file://${filePath}`);
       setTimeout(() => {
         setSavedPreview(null);

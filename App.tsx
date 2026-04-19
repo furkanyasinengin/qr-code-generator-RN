@@ -19,7 +19,7 @@ function App() {
       <StatusBar barStyle={'dark-content'} />
       <NavigationContainer>
         <Tab.Navigator
-          initialRouteName="History"
+          initialRouteName="Create"
           screenOptions={{
             headerShown: false,
             tabBarActiveTintColor: '#3b82f6',

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Switch,
   TouchableOpacity,
 } from 'react-native';
 import { Text, View, ActivityIndicator } from 'react-native';
@@ -47,11 +48,19 @@ export function GeneratorScreen({ route, navigation }: any) {
   // const [primaryColor, setPrimaryColor] = useState<string>('#000000');
   // const [secondaryColor, setSecondaryColor] = useState<string>('#000000');
   // const [backgroundColor, setBackgroundColor] = useState<string>('#FFFFFF');
+  const [designTab, setDesignTab] = useState<
+    'data' | 'colors' | 'shapes' | 'logo'
+  >('data');
+
   const [qrDesign, setQrDesign] = useState({
     primaryColor: '#000000',
     secondaryColor: '#000000',
     backgroundColor: '#FFFFFF',
-    // İleride buraya gradient: false, dotShape: 'rounded' gibi şeyler de ekleyebilirsin
+    isGradient: false,
+    gradientColor: '#3B82F6',
+    gradientDirection: 'horizontal',
+    dotShape: 'square',
+    eyeShape: 'square',
   });
 
   const [activeTab, setActiveTab] = useState<'data' | 'eye' | 'bg'>('data');
@@ -76,12 +85,6 @@ export function GeneratorScreen({ route, navigation }: any) {
     vcardEmail: '',
     vcardCompany: '',
     vcardWorkTitle: '',
-    // vcardWorkPhone: '',
-    // vcardFax: '',
-    // vcardStreet: '',
-    // vcardCity: '',
-    // vcardRegion: '',
-    // vcardPostCode: '',
     vcardWebsite: '',
     emailTo: '',
     emailSubject: '',
@@ -309,115 +312,250 @@ export function GeneratorScreen({ route, navigation }: any) {
             qrData={qrData}
             qrSize={qrSize}
             qrSquareSize={qrSquareSize}
-            primaryColor={qrDesign.primaryColor}
-            secondaryColor={qrDesign.secondaryColor}
-            backgroundColor={qrDesign.backgroundColor}
+            // primaryColor={qrDesign.primaryColor}
+            // secondaryColor={qrDesign.secondaryColor}
+            // backgroundColor={qrDesign.backgroundColor}
+            design={qrDesign}
             skiaLogo={skiaLogo}
             canvasSize={CANVAS_SIZE}
             logoSize={LOGO_SIZE}
             padding={PADDING}
           />
-          {qrSize > 45 && (
-            <View className="bg-yellow-50 px-3 py-2 rounded-lg mt-2 border border-yellow-200 flex-row items-center">
-              <Text className="text-yellow-700 text-xs font-medium">
+          <View className="px-3 py-2 mt-2  flex-row items-center">
+            {qrSize > 45 && (
+              <Text className="px-3 py-2 bg-yellow-50 text-yellow-700 text-xs font-medium border border-yellow-200 rounded-lg">
                 Data is dense. Some old cameras might struggle to scan.
               </Text>
+            )}
+          </View>
+
+          <View className="flex-row bg-gray-200 p-1 rounded-2xl mx-5 my-4">
+            {['data', 'colors', 'shapes', 'logo'].map(tab => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => {
+                  triggerHaptic();
+                  setDesignTab(tab as any);
+                }}
+                className={`flex-1 py-2 rounded-xl items-center ${
+                  designTab === tab ? 'bg-white' : 'bg-transparent'
+                }`}
+              >
+                <Text
+                  className={`text-sm font-bold capitalize ${
+                    designTab === tab ? 'text-blue-600' : 'text-gray-500'
+                  }`}
+                >
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {designTab === 'data' && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                triggerHaptic();
+                setIsDataModalVisible(true);
+              }}
+              className="w-[90%] bg-white p-4 rounded-xl my-4 border border-gray-200 shadow-sm flex-row items-center"
+            >
+              {/* İKON KISMI */}
+              <View className="bg-gray-50 p-2.5 rounded-full mr-3 border border-gray-100">
+                <Text className="text-gray-500 text-xs font-bold uppercase mb-1">
+                  {getPreviewIcon()}
+                </Text>
+              </View>
+
+              {/* METİN KISMI */}
+              <View className="flex-1 justify-center">
+                <Text className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">
+                  {qrType} Data
+                </Text>
+                <Text
+                  className="text-gray-800 font-bold text-base"
+                  numberOfLines={1}
+                >
+                  {getPreviewText()}
+                </Text>
+              </View>
+
+              <View className="bg-blue-50 p-2 rounded-full ml-3">
+                <Pencil size={18} color="#3B82F6" />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {designTab === 'colors' && (
+            <View className="w-[90%] bg-white py-3 px-2 my-4 rounded-xl border border-gray-200">
+              <View className="flex-row items-center justify-between mb-4 px-2">
+                <Text className="font-bold text-gray-700 text-base">
+                  Enable Gradient
+                </Text>
+                <Switch
+                  trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                  thumbColor={qrDesign.isGradient ? '#3b82f6' : '#f3f4f6'}
+                  value={qrDesign.isGradient}
+                  onValueChange={val => {
+                    triggerHaptic();
+                    setQrDesign(prev => ({ ...prev, isGradient: val }));
+                    if (val && activeTab === 'eye') {
+                      setActiveTab('data');
+                    }
+                  }}
+                />
+              </View>
+
+              <ColorSelector
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                activeColor={getActiveColor()}
+                triggerHaptic={triggerHaptic}
+                isGradient={qrDesign.isGradient}
+                gradientColor={qrDesign.gradientColor}
+                onColorSelect={color => {
+                  if (activeTab === 'data') {
+                    setQrDesign(prev => ({
+                      ...prev,
+                      primaryColor: color,
+                      ...(prev.isGradient ? { secondaryColor: color } : {}),
+                    }));
+                  } else if (activeTab === 'eye') {
+                    setQrDesign(prev => ({ ...prev, secondaryColor: color }));
+                  } else if (activeTab === 'bg') {
+                    setQrDesign(prev => ({ ...prev, backgroundColor: color }));
+                  }
+                }}
+                onGradientColorSelect={color => {
+                  setQrDesign(prev => ({ ...prev, gradientColor: color }));
+                }}
+              />
+              {qrDesign.isGradient && activeTab === 'data' && (
+                <View className="px-2 mt-4">
+                  <Text className="text-gray-500 font-bold text-xs mb-2">
+                    GRADIENT DIRECTION
+                  </Text>
+                  <View className="flex-row justify-between">
+                    {['horizontal', 'vertical', 'diagonal'].map(dir => (
+                      <TouchableOpacity
+                        key={dir}
+                        onPress={() => {
+                          triggerHaptic();
+                          setQrDesign(prev => ({
+                            ...prev,
+                            gradientDirection: dir,
+                          }));
+                        }}
+                        className={`flex-1 mx-1 py-2 items-center rounded-lg border ${
+                          qrDesign.gradientDirection === dir
+                            ? 'bg-blue-50 border-blue-400'
+                            : 'bg-gray-50 border-gray-200'
+                        }`}
+                      >
+                        <Text
+                          className={`capitalize font-semibold text-sm ${
+                            qrDesign.gradientDirection === dir
+                              ? 'text-blue-600'
+                              : 'text-gray-500'
+                          }`}
+                        >
+                          {dir}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
           )}
-          {/* <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              triggerHaptic();
-              setIsDataModalVisible(true);
-            }}
-            className="w-[90%] bg-white p-4 rounded-xl my-4 border border-gray-200 shadow-sm flex-row items-center"
-          >
-            <View className="bg-gray-50 p-2.5 rounded-full mr-3 border border-gray-100">
-              <Text className="text-gray-500 text-xs font-bold uppercase mb-1">
-                {qrType === 'url' ? (
-                  <Link size={20} color="#6B7280" />
-                ) : qrType === 'wifi' ? (
-                  <Wifi size={20} color="#6B7280" />
-                ) : qrType === 'vcard' ? (
-                  <Contact size={20} color="#6B7280" />
-                ) : (
-                  <FileText size={20} color="#6B7280" />
-                )}
-              </Text>
-            </View>
-            <View className="flex-1 justify-center">
-              <Text className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">
-                {qrType} Data
-              </Text>
-              <Text
-                className="text-gray-800 font-bold text-base"
-                numberOfLines={1}
-              >
-                {qrType === 'url'
-                  ? formData.url
-                  : qrType === 'wifi'
-                    ? formData.wifiName || 'Network Name Missing'
-                    : qrType === 'vcard'
-                      ? formData.vcardName || 'Name Missing'
-                      : formData.text || 'Text Missing'}
-              </Text>
-            </View>
-            <View className="bg-blue-50 p-2 rounded-full ml-3">
-              <Pencil size={18} color="#3B82F6" />
-            </View>
-          </TouchableOpacity> */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              triggerHaptic();
-              setIsDataModalVisible(true);
-            }}
-            className="w-[90%] bg-white p-4 rounded-xl my-4 border border-gray-200 shadow-sm flex-row items-center"
-          >
-            {/* İKON KISMI */}
-            <View className="bg-gray-50 p-2.5 rounded-full mr-3 border border-gray-100">
-              <Text className="text-gray-500 text-xs font-bold uppercase mb-1">
-                {getPreviewIcon()}
-              </Text>
-            </View>
 
-            {/* METİN KISMI */}
-            <View className="flex-1 justify-center">
-              <Text className="text-gray-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">
-                {qrType} Data
+          {designTab === 'shapes' && (
+            <View className="w-[90%] bg-white p-4 my-4 rounded-xl border border-gray-200">
+              <Text className="text-gray-700 font-bold mb-3">
+                Pattern Style
               </Text>
-              <Text
-                className="text-gray-800 font-bold text-base"
-                numberOfLines={1}
-              >
-                {getPreviewText()}
-              </Text>
-            </View>
+              <View className="flex-row flex-wrap gap-2 mb-6">
+                {[
+                  { id: 'square', label: 'Classic' },
+                  { id: 'rounded', label: 'Rounded' },
+                  { id: 'dots', label: 'Dots' },
+                  { id: 'vertical', label: 'Vertical' },
+                  { id: 'horizontal', label: 'Horizontal' },
+                  { id: 'squircle', label: 'Squircle' },
+                ].map(shape => (
+                  <TouchableOpacity
+                    key={shape.id}
+                    onPress={() => {
+                      triggerHaptic();
+                      setQrDesign(prev => ({ ...prev, dotShape: shape.id }));
+                    }}
+                    className={`w-[31%] py-3 items-center rounded-lg border ${
+                      qrDesign.dotShape === shape.id
+                        ? 'bg-blue-50 border-blue-400'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <Text
+                      className={`font-semibold text-sm ${
+                        qrDesign.dotShape === shape.id
+                          ? 'text-blue-600'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {shape.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <View className="bg-blue-50 p-2 rounded-full ml-3">
-              <Pencil size={18} color="#3B82F6" />
+              <Text className="text-gray-700 font-bold mb-3">
+                Eye Style (Corners)
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {[
+                  { id: 'square', label: 'Square' },
+                  { id: 'rounded', label: 'Rounded' },
+
+                  { id: 'dots', label: 'Dots' },
+                  { id: 'diamond', label: 'Diamond' },
+                ].map(shape => (
+                  <TouchableOpacity
+                    key={shape.id}
+                    onPress={() => {
+                      triggerHaptic();
+                      setQrDesign(prev => ({ ...prev, eyeShape: shape.id }));
+                    }}
+                    className={`w-[31%] py-3 items-center rounded-lg border ${
+                      qrDesign.eyeShape === shape.id
+                        ? 'bg-blue-50 border-blue-400'
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
+                  >
+                    <Text
+                      className={`font-semibold text-sm ${
+                        qrDesign.eyeShape === shape.id
+                          ? 'text-blue-600'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {shape.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </TouchableOpacity>
-          <ColorSelector
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            activeColor={getActiveColor()}
-            triggerHaptic={triggerHaptic}
-            onColorSelect={color => {
-              if (activeTab === 'data')
-                setQrDesign(prev => ({ ...prev, primaryColor: color }));
-              else if (activeTab === 'eye')
-                setQrDesign(prev => ({ ...prev, secondaryColor: color }));
-              else if (activeTab === 'bg')
-                setQrDesign(prev => ({ ...prev, backgroundColor: color }));
-            }}
-          />
-          <IconSelector
-            triggerHaptic={triggerHaptic}
-            activeIcon={logo}
-            onGallerySelect={handleLogoSelect}
-            onIconSelect={icon => setLogo(icon)}
-          />
+          )}
+
+          {designTab === 'logo' && (
+            <IconSelector
+              triggerHaptic={triggerHaptic}
+              activeIcon={logo}
+              onGallerySelect={handleLogoSelect}
+              onIconSelect={icon => setLogo(icon)}
+            />
+          )}
+
           <ActionButtons onShare={handleShare} onSave={handleSaveToGallery} />
         </ScrollView>
       </View>
@@ -454,9 +592,10 @@ export function GeneratorScreen({ route, navigation }: any) {
           qrData={qrData}
           qrSize={qrSize}
           qrSquareSize={exportQrSquareSize}
-          primaryColor={qrDesign.primaryColor}
-          secondaryColor={qrDesign.secondaryColor}
-          backgroundColor={qrDesign.backgroundColor}
+          design={qrDesign}
+          // primaryColor={qrDesign.primaryColor}
+          // secondaryColor={qrDesign.secondaryColor}
+          // backgroundColor={qrDesign.backgroundColor}
           skiaLogo={skiaLogo}
           canvasSize={EXPORT_SIZE}
           logoSize={EXPORT_LOGO_SIZE}

@@ -8,6 +8,7 @@ import {
   Platform,
   Linking,
   NativeModules,
+  Share,
 } from 'react-native';
 import {
   X,
@@ -23,6 +24,8 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  EyeOff,
+  Eye,
 } from 'lucide-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { triggerHaptic } from '../utils/haptic';
@@ -50,6 +53,7 @@ export default function ScannerModal({
   onClose,
 }: ScannerModalProps) {
   const [showRaw, setShowRaw] = useState(false);
+  const [showWifiPassword, setShowWifiPassword] = useState(false);
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -210,7 +214,7 @@ export default function ScannerModal({
       case 'url':
         return 'Open Website';
       case 'wifi':
-        return 'Join Network';
+        return 'Join Wi-Fi';
       case 'vcard':
         return 'Save Contact';
       case 'email':
@@ -220,12 +224,24 @@ export default function ScannerModal({
       case 'sms':
         return 'Send Message';
       case 'location':
-        return 'Open in Maps'; // Düzeltilen İngilizce
+        return 'Open in Maps';
       case 'event':
         return 'Add to Calendar';
       default:
         return `Action (${type})`;
     }
+  };
+
+  const formatEventDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    const match = dateString.match(
+      /^(\d{4})(\d{2})(\d{2})(T(\d{2})(\d{2})(\d{2}))?/,
+    );
+    if (!match) return dateString;
+    const [_, year, month, day, hasTime, hour, minute] = match;
+    let formatted = `${day}/${month}/${year}`;
+    if (hasTime) formatted += ` ${hour}:${minute}`;
+    return formatted;
   };
 
   const getCopyString = () => {
@@ -235,7 +251,7 @@ export default function ScannerModal({
     }
     if (type === 'vcard') {
       const v = parseVcardData(scannedData);
-      return `${v.fn}\n${v.tel}`;
+      return `Name: ${v.fn}\nPhone: ${v.tel}${v.email ? `\nEmail: ${v.email}` : ''}`;
     }
     if (type === 'email') {
       const e = parseEmailData(scannedData);
@@ -243,10 +259,11 @@ export default function ScannerModal({
     }
     if (type === 'event') {
       const ev = parseEventData(scannedData);
-      return ev.title;
+      return `Event: ${ev.title}\nStart: ${formatEventDate(ev.start)}\nEnd: ${formatEventDate(ev.end)}\nLocation: ${ev.location || 'N/A'}`;
     }
     if (type === 'sms') {
-      return parseSmsData(scannedData).phone;
+      const s = parseSmsData(scannedData);
+      return `Phone: ${s.phone}\nMessage: ${s.message}`;
     }
     return scannedData.replace(/^(tel:|mailto:|geo:)/i, '');
   };
@@ -255,48 +272,161 @@ export default function ScannerModal({
     if (type === 'wifi') {
       const w = parseWifiData(scannedData);
       return (
-        <Text className="text-gray-700 text-base">
-          SSID: <Text className="font-bold">{w.ssid}</Text>
-          {'\n'}Password:{' '}
-          <Text className="font-bold">{w.password || 'None'}</Text>
-        </Text>
+        <View>
+          <Text className="text-gray-700 text-base mb-1">
+            SSID: <Text className="font-bold">{w.ssid}</Text>
+          </Text>
+          <View className="flex-row items-center">
+            {w.password && (
+              <Text className="text-gray-700 text-base">Password: </Text>
+            )}
+            <Text className="font-bold text-base mr-2">
+              {showWifiPassword ? w.password : '•'.repeat(w.password.length)}
+            </Text>
+          </View>
+        </View>
       );
     }
     if (type === 'vcard') {
       const v = parseVcardData(scannedData);
       return (
-        <Text className="text-gray-700 text-base">
-          <Text className="font-bold">{v.fn}</Text>
-          {'\n'}
-          {v.tel}
-        </Text>
+        <View>
+          <Text className="text-gray-800 text-lg font-bold">{v.fn}</Text>
+          {v.tel ? <Text className="text-gray-600 mt-1">{v.tel}</Text> : null}
+          {v.email ? (
+            <Text className="text-gray-600 mt-1">{v.email}</Text>
+          ) : null}
+          {v.org ? <Text className="text-gray-600 mt-1">{v.org}</Text> : null}
+        </View>
       );
     }
     if (type === 'email') {
       const e = parseEmailData(scannedData);
       return (
-        <Text className="text-gray-700 text-base">
-          To: <Text className="font-bold">{e.email}</Text>
-          {e.subject ? `\nSubject: ${e.subject}` : ''}
-        </Text>
+        <View>
+          <Text className="text-gray-700 text-base">
+            To: <Text className="font-bold">{e.email}</Text>
+          </Text>
+          {e.subject ? (
+            <Text className="text-gray-700 text-base mt-1">
+              Subject: <Text className="font-semibold">{e.subject}</Text>
+            </Text>
+          ) : null}
+        </View>
       );
     }
     if (type === 'event') {
       const ev = parseEventData(scannedData);
       return (
-        <Text className="text-gray-700 text-base font-bold">{ev.title}</Text>
+        <View>
+          <Text className="text-gray-800 text-lg font-bold mb-2">
+            {ev.title}
+          </Text>
+          {ev.start ? (
+            <Text className="text-gray-600 mb-1">
+              Start: {formatEventDate(ev.start)}
+            </Text>
+          ) : null}
+          {ev.end ? (
+            <Text className="text-gray-600 mb-1">
+              End: {formatEventDate(ev.end)}
+            </Text>
+          ) : null}
+          {ev.location ? (
+            <Text className="text-gray-600">Location: {ev.location}</Text>
+          ) : null}
+        </View>
+      );
+    }
+    if (type === 'sms') {
+      const s = parseSmsData(scannedData);
+      return (
+        <View>
+          <Text className="text-gray-700 text-base">
+            To: <Text className="font-bold">{s.phone}</Text>
+          </Text>
+          {s.message ? (
+            <Text className="text-gray-600 mt-1">
+              Message: <Text className="font-medium">{s.message}</Text>
+            </Text>
+          ) : null}
+        </View>
       );
     }
     return (
       <Text className="text-gray-700 text-base font-medium">
-        {type === 'sms'
-          ? parseSmsData(scannedData).phone
-          : scannedData.replace(/^(tel:|mailto:|geo:)/i, '')}
+        {type === 'phone'
+          ? scannedData.replace(/tel:/i, '')
+          : scannedData.replace(/^(mailto:|geo:)/i, '')}
       </Text>
     );
   };
 
+  const renderSecondaryActions = () => {
+    const btnClass =
+      'flex-1 bg-gray-200 rounded-xl items-center py-4 justify-center';
+    const txtClass = 'text-black font-medium text-lg';
+
+    if (type === 'wifi') {
+      const w = parseWifiData(scannedData);
+      return (
+        <TouchableOpacity
+          onPress={() => copyToClipboard(w.password || '')}
+          className={btnClass}
+        >
+          <Text className={txtClass}>Copy Password</Text>
+        </TouchableOpacity>
+      );
+    }
+    if (type === 'email') {
+      const e = parseEmailData(scannedData);
+      return (
+        <TouchableOpacity
+          onPress={() => copyToClipboard(e.email || '')}
+          className={btnClass}
+        >
+          <Text className={txtClass}>Copy Email</Text>
+        </TouchableOpacity>
+      );
+    }
+    if (type === 'sms') {
+      const s = parseSmsData(scannedData);
+      return (
+        <TouchableOpacity
+          onPress={() => copyToClipboard(s.phone || '')}
+          className={btnClass}
+        >
+          <Text className={txtClass}>Copy Number</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (type === 'vcard') {
+      const v = parseVcardData(scannedData);
+      return (
+        <TouchableOpacity
+          onPress={() => copyToClipboard(v.tel || '')}
+          className={btnClass}
+        >
+          <Text className={txtClass}>Copy Number</Text>
+        </TouchableOpacity>
+      );
+    }
+    if (type === 'event') {
+      return (
+        <TouchableOpacity
+          onPress={() => Share.share({ message: getCopyString() })}
+          className={btnClass}
+        >
+          <Text className={txtClass}>Share Event</Text>
+        </TouchableOpacity>
+      );
+    }
+    return null;
+  };
+
   const header = getHeaderInfo();
+  const secondaryActionBtn = renderSecondaryActions();
 
   return (
     <Modal
@@ -306,7 +436,7 @@ export default function ScannerModal({
       onRequestClose={onClose}
     >
       <View className="flex-1 justify-end bg-black/50">
-        <View className="bg-white p-6 rounded-t-3xl max-h-[90%]">
+        <View className="bg-white p-6 rounded-t-3xl max-h-[90%] mb-[-50px] pb-[80px]">
           <View className="flex-row justify-between items-center mb-6">
             <View className="flex-row items-center space-x-3">
               <View className="bg-blue-50 p-3 rounded-full">{header.icon}</View>
@@ -330,6 +460,18 @@ export default function ScannerModal({
                 <View className="flex-1 mr-3 justify-center">
                   {renderParsedData()}
                 </View>
+                {type === 'wifi' && (
+                  <TouchableOpacity
+                    onPress={() => setShowWifiPassword(!showWifiPassword)}
+                    className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 mr-1"
+                  >
+                    {showWifiPassword ? (
+                      <Eye size={20} color="gray" />
+                    ) : (
+                      <EyeOff size={20} color="gray" />
+                    )}
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={() => copyToClipboard(getCopyString())}
                   className="p-2 bg-white rounded-lg shadow-sm border border-gray-100"
@@ -367,15 +509,25 @@ export default function ScannerModal({
               </View>
             )}
           </ScrollView>
-          {type !== 'text' && (
-            <TouchableOpacity
-              onPress={handleAction}
-              className="w-full bg-blue-500 rounded-xl py-4 items-center mt-2 shadow-sm"
-            >
-              <Text className="text-white font-bold text-lg">
-                {getActionText()}
-              </Text>
-            </TouchableOpacity>
+
+          {(type !== 'text' || secondaryActionBtn) && (
+            <View className="flex-row gap-2 mt-2">
+              {secondaryActionBtn && secondaryActionBtn}
+              {type !== 'text' && (
+                <TouchableOpacity
+                  onPress={handleAction}
+                  className="flex-1 bg-blue-500 rounded-xl py-4 items-center"
+                >
+                  <Text
+                    className="text-white font-bold text-lg"
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                  >
+                    {getActionText()}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
         </View>
       </View>

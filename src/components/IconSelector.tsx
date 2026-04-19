@@ -51,7 +51,7 @@ export default function IconSelector({
   triggerHaptic,
 }: IconSelectorProps) {
   return (
-    <View className="w-full mt-6">
+    <View className="w-full my-4">
       <ScrollView
         keyboardShouldPersistTaps="handled"
         className="flex-grow-0 mx-5 p-2 bg-gray-200 rounded-xl"

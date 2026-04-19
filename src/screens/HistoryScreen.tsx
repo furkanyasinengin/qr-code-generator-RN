@@ -35,10 +35,13 @@ export default function HistoryScreen() {
   const clearHistory = useStore(state => state.clearHistory);
 
   const [activeTab, setActiveTab] = useState<'scan' | 'create'>('create');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
 
-  const filteredHistory = (history || []).filter(
-    item => item?.source === activeTab,
-  );
+  const filteredHistory = (history || []).filter(item => {
+    const matchTab = item.source === activeTab;
+    const matchFavorite = showFavoritesOnly ? item.isFavorite : true;
+    return matchTab && matchFavorite;
+  });
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -112,27 +115,38 @@ export default function HistoryScreen() {
     <View className="flex-1 bg-gray-100 mt-10">
       <View className="flex-row items-center justify-between px-5 py-4">
         <Text className="text-2xl font-bold text-gray-800">History</Text>
-
-        <TouchableOpacity
-          className="p-2"
-          onPress={() =>
-            setAlertConfig({
-              ...alertConfig,
-              visible: true,
-              title: 'Are you sure?',
-              message: 'All QR code information will be deleted.',
-              confirmText: 'Delete All',
-              onConfirm: () => {
-                clearHistory();
-                setAlertConfig({ ...alertConfig, visible: false });
-              },
-              closeText: 'Cancel',
-              onClose: () => setAlertConfig({ ...alertConfig, visible: false }),
-            })
-          }
-        >
-          <Trash2 size={25} color="#EF4444" />
-        </TouchableOpacity>
+        <View className="flex-row items-center space-x-2">
+          <TouchableOpacity
+            className="p-2"
+            onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
+          >
+            <Star
+              color={showFavoritesOnly ? '#EAB308' : '#9CA3AF'}
+              fill={showFavoritesOnly ? '#EAB308' : 'none'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="p-2"
+            onPress={() =>
+              setAlertConfig({
+                ...alertConfig,
+                visible: true,
+                title: 'Are you sure?',
+                message: 'All QR code information will be deleted.',
+                confirmText: 'Delete All',
+                onConfirm: () => {
+                  clearHistory();
+                  setAlertConfig({ ...alertConfig, visible: false });
+                },
+                closeText: 'Cancel',
+                onClose: () =>
+                  setAlertConfig({ ...alertConfig, visible: false }),
+              })
+            }
+          >
+            <Trash2 size={25} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
       <View className="flex-row bg-gray-200 p-1 rounded-xl mx-5 mb-4">
         <TouchableOpacity
@@ -178,7 +192,9 @@ export default function HistoryScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={() => (
           <View className="items-center justify-center py-20">
-            <Text className="text-gray-400 text-lg">No history found.</Text>
+            <Text className="text-gray-400 text-lg">
+              {showFavoritesOnly ? 'No favorites found.' : 'No history found.'}
+            </Text>
           </View>
         )}
         renderItem={({ item }) => (
